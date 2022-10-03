@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import crypto from "crypto-js";
+import fs from "fs";
 
 // Honor
 const ip = "192.168.3.1";
@@ -118,28 +119,36 @@ const getip = async (localhostpsw) => {
         }
     })
     const hostDeviceJson = (await reqLast.json())
-    return hostDeviceJson.IPv4Gateway
+    return hostDeviceJson.IPv4Addr
 }
 
 getip(password).then(async (i) => {
-    let getrid = await fetch(`https://api.cloudflare.com/client/v4/zones/${cf_zone}/dns_records?type=A&name=${domain}`, {
-        headers: {
-            "X-Auth-Email": cf_email,
-            "X-Auth-Key": cf_global_key,
-            "Content-Type": "application/json"
-        }
-    })
-    let rid = (await getrid.json()).result[0].id;
+    let last = "";
+    try { last = fs.readFileSync("./ip") } catch (e) { }
 
-    let b = await fetch(`https://api.cloudflare.com/client/v4/zones/${cf_zone}/dns_records/${rid}`, {
-        headers: {
-            "X-Auth-Email": cf_email,
-            "X-Auth-Key": cf_global_key,
-            "Content-Type": "application/json"
-        },
-        method: "PUT",
-        body: JSON.stringify({ "type": "A", "name": domain, "content": i, "ttl": 1, "proxied": false })
-    })
+    if (last != i) {
+        let getrid = await fetch(`https://api.cloudflare.com/client/v4/zones/${cf_zone}/dns_records?type=A&name=${domain}`, {
+            headers: {
+                "X-Auth-Email": cf_email,
+                "X-Auth-Key": cf_global_key,
+                "Content-Type": "application/json"
+            }
+        })
+        let rid = (await getrid.json()).result[0].id;
 
-    console.log(await b.json())
+        let b = await fetch(`https://api.cloudflare.com/client/v4/zones/${cf_zone}/dns_records/${rid}`, {
+            headers: {
+                "X-Auth-Email": cf_email,
+                "X-Auth-Key": cf_global_key,
+                "Content-Type": "application/json"
+            },
+            method: "PUT",
+            body: JSON.stringify({ "type": "A", "name": domain, "content": i, "ttl": 1, "proxied": false })
+        })
+
+        console.log(await b.json())
+        fs.writeFileSync("./ip", i);
+    } else {
+        console.log('no change')
+    }
 })
